@@ -109,7 +109,25 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           SHORT_HASH=$(git rev-parse --short=12 "${{ steps.upstream.outputs.hash }}")
-          git add usr .upstream-jupiter-commit
-          git commit -m "sync: gamescope-session (jupiter ${SHORT_HASH})"
-          git push
+          DATE=$(date -u +%Y%m%d)
 
+          LAST_RELEASE=$(git tag -l "${DATE}.*" \
+            | sed -n "s/^${DATE}\.\([0-9]\+\)$/\1/p" \
+            | sort -n \
+            | tail -n 1)
+
+          if [ -z "$LAST_RELEASE" ]; then
+            RELEASE=1
+          else
+            RELEASE=$((LAST_RELEASE + 1))
+          fi
+
+          TAG="${DATE}.${RELEASE}"
+
+          git add usr .github/.upstream-jupiter-commit
+          git commit -m "sync: gamescope-session (jupiter ${SHORT_HASH})"
+
+          git tag "$TAG"
+
+          git push
+          git push --tags

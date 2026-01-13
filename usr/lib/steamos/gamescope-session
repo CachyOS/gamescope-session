@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Create run directory file for startup and stats sockets
+# reate run directory file for startup and stats sockets
 #   shellcheck disable=SC2030 # (broken warning)
 tmpdir="$([[ -n ${XDG_RUNTIME_DIR+x} ]] && mktemp -p "$XDG_RUNTIME_DIR" -d -t gamescope.XXXXXXX)"
 socket="${tmpdir:+$tmpdir/startup.socket}"
