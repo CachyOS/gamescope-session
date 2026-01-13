@@ -1,0 +1,115 @@
+name: Sync gamescope-session from Valve Jupiter
+
+on:
+  schedule:
+    # Every Monday at 03:00 UTC
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    container:
+      image: archlinux:base-devel
+
+    steps:
+      - name: Setup build environment
+        run: |
+          # Install dependencies
+          sudo pacman -Sy --noconfirm git rsync
+
+          # Create builder user
+          useradd builder -m
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+
+      - name: Clone Valve jupiter repo
+        run: |
+          git clone https://github.com/evlaV/jupiter.git /tmp/jupiter
+          chmod -R a+rw /tmp/jupiter
+
+      - name: Get latest relevant gamescope commit
+        id: upstream
+        run: |
+          cd /tmp/jupiter
+          HASH=$(git log -n1 --format=%H -- \
+            gamescope \
+            ':(exclude)gamescope/PKGBUILD' \
+            ':(exclude)gamescope/gamescope.install')
+          echo "hash=$HASH" >> $GITHUB_OUTPUT
+
+      - name: Checkout gamescope-session-steamos
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Mark workspace as safe for git
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Read last synced commit
+        id: last
+        run: |
+          if [ -f .upstream-jupiter-commit ]; then
+            echo "hash=$(cat .upstream-jupiter-commit)" >> $GITHUB_OUTPUT
+          else
+            echo "hash=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Skip build if upstream unchanged
+        if: steps.upstream.outputs.hash == steps.last.outputs.hash
+        run: |
+          echo "Upstream gamescope-session unchanged, skipping sync."
+          exit 0
+
+      - name: Build gamescope package
+        working-directory: /tmp/jupiter/gamescope
+        run: |
+          patch -p2 < "$GITHUB_WORKSPACE/.github/cleanup-pkgbuild.patch"
+          sudo -H -E -u builder makepkg --skipchecksums --syncdeps --noconfirm
+
+      # ----------------------------
+      # Extract built package
+      # ----------------------------
+      - name: Extract gamescope package
+        run: |
+          mkdir -p /tmp/pkgroot
+          PKG=$(ls /tmp/jupiter/gamescope/*.pkg.tar.*)
+          bsdtar -xvf "$PKG" -C /tmp/pkgroot
+
+      - name: Sync installed filesystem
+        run: |
+          mkdir -p usr
+          rsync -av --delete \
+            /tmp/pkgroot/usr/ \
+            usr/
+
+      # ----------------------------
+      # Record upstream commit hash
+      # ----------------------------
+      - name: Update upstream commit record
+        run: |
+          echo "${{ steps.upstream.outputs.hash }}" > .upstream-jupiter-commit
+
+      # ----------------------------
+      # Commit and push if changed
+      # ----------------------------
+      - name: Commit and push updates
+        run: |
+          if git diff --quiet; then
+            echo "No changes after sync."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          SHORT_HASH=$(git rev-parse --short=12 "${{ steps.upstream.outputs.hash }}")
+          git add usr .upstream-jupiter-commit
+          git commit -m "sync: gamescope-session (jupiter ${SHORT_HASH})"
+          git push
+
