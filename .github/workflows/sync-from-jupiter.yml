@@ -93,7 +93,7 @@ jobs:
       # ----------------------------
       - name: Update upstream commit record
         run: |
-          echo "${{ steps.upstream.outputs.hash }}" > .upstream-jupiter-commit
+          echo "${{ steps.upstream.outputs.hash }}" > .github/.upstream-jupiter-commit
 
       # ----------------------------
       # Commit and push if changed
