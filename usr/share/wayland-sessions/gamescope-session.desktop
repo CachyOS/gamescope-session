@@ -1,7 +1,7 @@
 [Desktop Entry]
 Encoding=UTF-8
-Name=SteamOS (gamescope)
-Comment=SteamOS Big Picture session
+Name=Gamescope
+Comment=Steam Big Picture session
 Exec=start-gamescope-session
 Icon=steamicon.png
 Type=Application
