@@ -9,5 +9,5 @@ SESSION="${1:-gamescope-session.desktop}"
 
 cat <<EOF > "$CONF_FILE"
 [Autologin]
-Session="$SESSION"
+Session=$SESSION
 EOF

@@ -12,7 +12,8 @@ case "$SESSION" in
         qdbus6 org.kde.Shutdown /Shutdown org.kde.Shutdown.logout;;
     'plasma')
         pkexec /usr/lib/steamos/steam-set-session plasma.desktop
-        steam -shutdown;;
+        steam -shutdown
+        systemctl --user stop gamescope-session.target;;
     *)
         die "Unknown session '$SESSION'";;
 esac
