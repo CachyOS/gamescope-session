@@ -131,7 +131,7 @@ export STEAM_GAMESCOPE_COLOR_MANAGED=1
 export STEAM_GAMESCOPE_VIRTUAL_WHITE=1
 
 # HDMI-CEC support
-export STEAM_ENABLE_CEC=1
+export STEAM_ENABLE_CEC=0
 
 # Set input method modules for Qt/GTK that will show the Steam keyboard
 export QT_IM_MODULE=steam
