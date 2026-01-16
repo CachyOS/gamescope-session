@@ -1,0 +1,24 @@
+#!/bin/bash
+set -e
+
+# Session, gamescope or plasma
+SESSION="${1:-gamescope}"
+
+die() { echo >&2 "!! $*"; exit 1; }
+
+case "$SESSION" in
+    'gamescope')
+        pkexec /usr/lib/steamos/steam-set-session gamescope-session.desktop
+        qdbus6 org.kde.Shutdown /Shutdown org.kde.Shutdown.logout;;
+    'plasma')
+        pkexec /usr/lib/steamos/steam-set-session plasma.desktop
+        steam -shutdown;;
+    *)
+        die "Unknown session '$SESSION'";;
+esac
+
+if [[ -e /dev/input/.hidden ]]; then
+    echo "Unhide hidden controller devices as needed"
+    pkexec mv /dev/input/.hidden/* /dev/input
+    pkexec rm -r /dev/input/.hidden
+fi
