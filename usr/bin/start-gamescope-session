@@ -16,7 +16,7 @@ dbus-update-activation-environment --systemd DESKTOP_SESSION `env | grep ^XDG_ |
 # gamescope-specific portal implementations and doesn't try to start other
 # irrelevant portal implementations (gtk, kde, …).
 # Plasma resets this variable when it starts.
-systemctl --user set-environment XDG_DESKTOP_PORTAL_DIR="/usr/share/xdg-desktop-portal/gamescope-portals"
+systemctl --user set-environment XDG_DESKTOP_PORTAL_DIR=""
 
 # Remove these as they prevent gamescope-session from starting correctly
 systemctl --user unset-environment DISPLAY XAUTHORITY
@@ -35,5 +35,6 @@ logger Gamescope Session Ended - Performing Final Cleanup
 # by also queuing up a job we can block until that completes
 rm -rf "$XDG_RUNTIME_DIR"/gamescope{.,-}*
 rm -f /tmp/gamescope-limiter*
+systemctl --user unset-environment XDG_DESKTOP_PORTAL_DIR
 systemctl --user stop graphical-session-pre.target
 logger Gamescope Session Ended - Cleanup Complete
