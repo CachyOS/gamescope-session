@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # It is possible to get things remaining from the previous session if SDDM is sigkilled by root systemd
 # and our units are still running in the user systemd
@@ -33,5 +33,7 @@ logger Gamescope Session Ended - Performing Final Cleanup
 # We want to wait until *everything* has finished. We know systemd will have
 # queued a stop job on graphical-session-pre aleady
 # by also queuing up a job we can block until that completes
+rm -rf "$XDG_RUNTIME_DIR"/gamescope{.,-}*
+rm -f /tmp/gamescope-limiter*
 systemctl --user stop graphical-session-pre.target
 logger Gamescope Session Ended - Cleanup Complete
