@@ -17,9 +17,6 @@ fi
 ##
 export SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS=0
 
-export HOMETEST_DESKTOP=1
-export HOMETEST_DESKTOP_SESSION=plasma
-
 export STEAM_MANGOAPP_PRESETS_SUPPORTED=1
 export STEAM_USE_MANGOAPP=1
 export MANGOHUD_CONFIGFILE="${tmpdir:+$tmpdir/mangohud.config}"
@@ -184,15 +181,6 @@ else
 fi
 export STEAM_UPDATEUI_PNG_BACKGROUND=$ui_background
 
-# We previously shipped custom boot animations alongside the OS as uioverrides
-# These boot animations have now been integrated to the steam client so
-# they no longer need to be part of the OS.
-for file in ~/.local/share/Steam/config/uioverrides/movies/*.installed; do
-	echo "Removing file: ${file%.installed}"
-	rm -- "${file%.installed}" || true
-	rm -- "${file}" || true
-done
-
 ulimit -n 524288
 
 # 1048576 = 1M - passing it like that omits the 'M' suffix - xargs removes whitespace
@@ -257,7 +245,6 @@ read_gamescope_env() {
 exec gamescope \
 	--generate-drm-mode fixed \
 	--xwayland-count 2 \
-	-w 1280 -h 800 \
 	--default-touch-mode 4 \
 	--hide-cursor-delay 3000 \
 	--max-scale 2 \
