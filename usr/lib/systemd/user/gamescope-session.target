@@ -15,3 +15,4 @@ Wants=steam-notif-daemon.service
 Wants=gamescope-xbindkeys.service
 Wants=galileo-mura-setup.service
 Wants=gamescope-mangoapp.service
+Wants=steamos-manager.service
