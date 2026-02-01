@@ -7,4 +7,4 @@
 # steamos-update --enable-duplicate-detection       -- should perform an update
 # steamos-update                                    -- should perform an update
 
-exit 7 # Tells Steam that there is nothing to update
+exit 0
