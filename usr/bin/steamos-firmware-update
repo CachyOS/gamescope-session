@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-source /usr/libexec/steamos/steamos-shellutil.sh
+source /usr/lib/steamos/steamos-shellutil.sh
 
 # Currently only the Legion Go S BIOS/System Firmware is handled.
 # We may loosen this to any system-firmware level updates in the future.
