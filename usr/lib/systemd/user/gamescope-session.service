@@ -14,6 +14,7 @@ Before=xdg-desktop-portal.service
 TimeoutStartSec=5
 TimeoutStopSec=10
 ExecStart=/usr/lib/steamos/gamescope-session
+ExecStopPost=/usr/bin/bash -c '/usr/bin/rm -rf "$XDG_RUNTIME_DIR"/gamescope{.,-}* /tmp/gamescope-limiter*'
 Type=notify
 NotifyAccess=all
 # Make Steam's srt-logger write to the journal with it's own prefixes
