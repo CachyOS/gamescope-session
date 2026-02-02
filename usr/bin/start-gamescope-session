@@ -18,9 +18,6 @@ dbus-update-activation-environment --systemd DESKTOP_SESSION `env | grep ^XDG_ |
 # Plasma resets this variable when it starts.
 systemctl --user set-environment XDG_DESKTOP_PORTAL_DIR=""
 
-# Remove these as they prevent gamescope-session from starting correctly
-systemctl --user unset-environment DISPLAY XAUTHORITY
-
 # If this shell script is killed then stop gamescope-session
 trap 'systemctl --user stop gamescope-session.target' HUP INT TERM
 

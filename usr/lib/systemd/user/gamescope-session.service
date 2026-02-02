@@ -19,4 +19,6 @@ Type=notify
 NotifyAccess=all
 # Make Steam's srt-logger write to the journal with it's own prefixes
 Environment=SRT_LOG_TO_JOURNAL=1
+# Remove these as they prevent gamescope-session from starting correctly
+UnsetEnvironment=DISPLAY XAUTHORITY
 Slice=session.slice
