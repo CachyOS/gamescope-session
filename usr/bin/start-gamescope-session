@@ -30,6 +30,5 @@ logger Gamescope Session Ended - Performing Final Cleanup
 # We want to wait until *everything* has finished. We know systemd will have
 # queued a stop job on graphical-session-pre aleady
 # by also queuing up a job we can block until that completes
-systemctl --user unset-environment XDG_DESKTOP_PORTAL_DIR
 systemctl --user stop graphical-session-pre.target
 logger Gamescope Session Ended - Cleanup Complete
