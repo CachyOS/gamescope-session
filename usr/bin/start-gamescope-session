@@ -6,9 +6,6 @@ systemctl --user stop gamescope-session.target
 systemctl --user stop graphical-session-pre.target
 systemctl --user reset-failed
 
-# SDDM sets this to wayland but apps using Gamescope must use x11
-export XDG_SESSION_TYPE=x11
-
 # Update the enviroment with DESKTOP_SESSION and all XDG variables
 dbus-update-activation-environment --systemd DESKTOP_SESSION `env | grep ^XDG_ | cut -d = -f 1`
 

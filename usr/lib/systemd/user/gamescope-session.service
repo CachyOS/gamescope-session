@@ -18,7 +18,8 @@ ExecStopPost=/usr/bin/bash -c '/usr/bin/rm -rf "$XDG_RUNTIME_DIR"/gamescope{.,-}
 Type=notify
 NotifyAccess=all
 # Make Steam's srt-logger write to the journal with it's own prefixes
-Environment=SRT_LOG_TO_JOURNAL=1
+# SDDM sets XDG_SESSION_TYPE to wayland but apps using Gamescope must use x11
+Environment="SRT_LOG_TO_JOURNAL=1" "XDG_SESSION_TYPE=x11"
 # Remove these as they prevent gamescope-session from starting correctly
 UnsetEnvironment=DISPLAY XAUTHORITY
 Slice=session.slice
