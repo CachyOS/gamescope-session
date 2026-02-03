@@ -1,9 +1,7 @@
 #!/bin/bash
 set -e
 
-DISPLAY_MANAGER="$(readlink -f /etc/systemd/system/display-manager.service \
-                    | sed 's|.*/||')"
-
+DISPLAY_MANAGER="$(systemctl show -p Id --value display-manager)"
 case "${DISPLAY_MANAGER%.service}" in
     plasmalogin) CONF_FILE="/etc/plasmalogin.conf.d/zz-steamos-autologin.conf";;
     sddm) CONF_FILE="/etc/sddm.conf.d/zz-steamos-autologin.conf";;
