@@ -7,4 +7,9 @@
 # steamos-update --enable-duplicate-detection       -- should perform an update
 # steamos-update                                    -- should perform an update
 
+if [[ -f /etc/handheld-first-boot ]]; then
+    rm -f /etc/handheld-first-boot
+    systemctl restart graphical.target
+fi
+
 exit 7 # Tells Steam that there is nothing to update
