@@ -7,6 +7,12 @@ SESSION="${1:-gamescope}"
 die() { echo >&2 "!! $*"; exit 1; }
 
 case "$SESSION" in
+    'persistent')
+        systemctl --user mask cachyos-gamescope-autologin.service
+        pkexec /usr/lib/steamos/steam-set-session plasma.desktop;;
+    'oneshot')
+        systemctl --user unmask cachyos-gamescope-autologin.service
+        pkexec /usr/lib/steamos/steam-set-session gamescope-session.desktop;;
     'gamescope')
         pkexec /usr/lib/steamos/steam-set-session gamescope-session.desktop
         qdbus6 org.kde.Shutdown /Shutdown org.kde.Shutdown.logout;;
