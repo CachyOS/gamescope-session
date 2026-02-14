@@ -11,7 +11,7 @@ esac
 # Don't do anything if system is using unsupported display manager
 [[ -z "$CONF_FILE" ]] && exit 0
 
-# Session, gamescope or plasma
+# Session, gamescope or gnome
 SESSION="${1:-gamescope-session.desktop}"
 
 cat <<EOF > "$CONF_FILE"

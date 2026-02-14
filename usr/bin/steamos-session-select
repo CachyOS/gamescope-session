@@ -14,6 +14,8 @@ case "$SESSION" in
         pkexec /usr/lib/steamos/steam-set-session gnome.desktop
         steam -shutdown
         systemctl --user stop gamescope-session.target;;
+        # User must be terminated or otherwise GDM would not allow you to relogin
+        sudo loginctl terminate-user 1000
     *)
         die "Unknown session '$SESSION'";;
 esac
