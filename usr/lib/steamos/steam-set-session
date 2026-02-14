@@ -1,10 +1,11 @@
 #!/bin/bash
 set -e
 
+# Get the current logged-in user (not root) (thanks mall0x!)
+CURRENT_USER=$(logname 2>/dev/null || whoami)
 DISPLAY_MANAGER="$(systemctl show -p Id --value display-manager)"
 case "${DISPLAY_MANAGER%.service}" in
-    plasmalogin) CONF_FILE="/etc/plasmalogin.conf.d/zz-steamos-autologin.conf";;
-    sddm) CONF_FILE="/etc/sddm.conf.d/zz-steamos-autologin.conf";;
+    gdm) CONF_FILE="/var/lib/AccountsService/users/${CURRENT_USER}";;
 esac
 
 # Don't do anything if system is using unsupported display manager
@@ -14,6 +15,6 @@ esac
 SESSION="${1:-gamescope-session.desktop}"
 
 cat <<EOF > "$CONF_FILE"
-[Autologin]
+[User]
 Session=$SESSION
 EOF
