@@ -8,12 +8,13 @@ die() { echo >&2 "!! $*"; exit 1; }
 
 case "$SESSION" in
     'gamescope')
-        pkexec /usr/lib/steamos/steam-set-session gamescope-session.desktop
+        pkexec /usr/lib/steamos/steam-set-session gamescope-session
         dbus-send --session --type=method_call --print-reply --dest=org.gnome.SessionManager /org/gnome/SessionManager org.gnome.SessionManager.Logout uint32:1;;
     'plasma')
-        pkexec /usr/lib/steamos/steam-set-session gnome.desktop
+        pkexec /usr/lib/steamos/steam-set-session gnome
         steam -shutdown
         systemctl --user stop gamescope-session.target
+        sleep 10
         # User must be terminated or otherwise GDM would not allow you to relogin
         sudo loginctl terminate-user 1000;;
     *)
