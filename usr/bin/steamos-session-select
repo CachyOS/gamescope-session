@@ -14,7 +14,7 @@ case "$SESSION" in
         pkexec /usr/lib/steamos/steam-set-session gnome
         steam -shutdown
         systemctl --user stop gamescope-session.target
-        sleep 10
+        sleep 5
         # User must be terminated or otherwise GDM would not allow you to relogin
         sudo loginctl terminate-user 1000;;
     *)
