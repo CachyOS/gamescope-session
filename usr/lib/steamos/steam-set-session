@@ -12,7 +12,7 @@ esac
 [[ -z "$CONF_FILE" ]] && exit 0
 
 # Session, gamescope or gnome
-SESSION="${1:-gamescope-session.desktop}"
+SESSION="${1:-gamescope-session}"
 
 # Use sed to avoid destructive changes to AccountService file
 PREV_SESSION=$(cat $CONF_FILE | grep -o -P '(?<=Session=).*')
