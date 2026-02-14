@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Session, gamescope or plasma
+# Session, gamescope or gnome
 SESSION="${1:-gamescope}"
 
 die() { echo >&2 "!! $*"; exit 1; }
@@ -10,7 +10,7 @@ case "$SESSION" in
     'gamescope')
         pkexec /usr/lib/steamos/steam-set-session gamescope-session.desktop
         dbus-send --session --type=method_call --print-reply --dest=org.gnome.SessionManager /org/gnome/SessionManager org.gnome.SessionManager.Logout uint32:1;;
-    'plasma')
+    'gnome')
         pkexec /usr/lib/steamos/steam-set-session gnome.desktop
         steam -shutdown
         systemctl --user stop gamescope-session.target;;
