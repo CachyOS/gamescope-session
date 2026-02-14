@@ -6,7 +6,7 @@ ConditionPathExists=!%t/gamescope-environment
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/pkexec /usr/lib/steamos/steam-set-session gamescope-session.desktop
+ExecStart=/usr/bin/pkexec /usr/lib/steamos/steam-set-session gnome
 
 [Install]
 WantedBy=graphical-session.target
