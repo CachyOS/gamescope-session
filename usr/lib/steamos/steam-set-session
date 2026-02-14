@@ -15,5 +15,5 @@ esac
 SESSION="${1:-gamescope-session.desktop}"
 
 # Use sed to avoid destructive changes to AccountService file
-PREV_SESSION=$(cat $CONF_FILE | grep -o -P '(?<=Session=).*')
-sed -i -e '0,/'"$PREV_SESSION"'/{s/'"$PREV_SESSION"'/'"$SESSION"'/g}' $CONF_FILE;
+PREV_SESSION=$(sudo cat $CONF_FILE | grep -o -P '(?<=Session=).*')
+sudo sed -i -e '0,/'"$PREV_SESSION"'/{s/'"$PREV_SESSION"'/'"$SESSION"'/g}' $CONF_FILE;
