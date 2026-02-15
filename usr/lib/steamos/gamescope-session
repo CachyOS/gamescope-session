@@ -242,6 +242,8 @@ read_gamescope_env() {
 # Spawned in parallel to read values from gamescope
 (read_gamescope_env &)
 
+output_connector="${OUTPUT_CONNECTOR:-*,eDP-1}"
+
 exec gamescope \
 	--generate-drm-mode fixed \
 	--xwayland-count 2 \
@@ -251,5 +253,5 @@ exec gamescope \
 	--fade-out-duration 200 \
 	--cursor-scale-height 720 \
 	-e -R "$socket" -T "$stats" \
-	-O '*',eDP-1 \
+	-O "$output_connector" \
 
