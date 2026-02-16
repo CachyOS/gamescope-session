@@ -33,7 +33,6 @@ board_name="$(cat /sys/class/dmi/id/board_name || true)"
 board_vendor="$(cat /sys/class/dmi/id/board_vendor || true)"
 if [[ $board_vendor = "Valve" && ( $board_name = "Jupiter" || $board_name = "Galileo" ) ]]; then
    estat "$board_vendor $board_name unit, using jupiter-biosupdate backend"
-   exit 0
    exec jupiter-biosupdate "$@" || die "Failed to find jupiter-biosupdate"
 fi
 
