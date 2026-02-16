@@ -2,7 +2,13 @@
 
 steamargs=("-steamos3" "-steampal" "-steamdeck" "-gamepadui")
 if [[ -x $HOME/devkit-game/devkit-steam ]]; then
+	# Start Apollo and netstickd services for network streaming and 3DS compatibility.
+	exec systemctl --user start apollo.service
+	exec systemctl --user start netstickd.service
 	exec "$HOME"/devkit-game/devkit-steam "${steamargs[@]}"
 else
+	# Start Apollo and netstickd services for network streaming and 3DS compatibility.
+	exec systemctl --user start apollo.service
+	exec systemctl --user start netstickd.service
 	exec steam "${steamargs[@]}"
 fi
