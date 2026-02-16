@@ -18,10 +18,18 @@ systemctl --user set-environment XDG_DESKTOP_PORTAL_DIR=""
 # If this shell script is killed then stop gamescope-session
 trap 'systemctl --user stop gamescope-session.target' HUP INT TERM
 
+# Start Apollo and netstickd services for network streaming and 3DS compatibility.
+systemctl --user start apollo.service
+systemctl --user start netstickd.service
+
 # Start gamescope-session and wait
 systemctl --user --wait start gamescope-session.target &
 wait
 logger Gamescope Session Ended - Performing Final Cleanup
+
+# Stop Apollo and netstickd services for network streaming and 3DS compatibility.
+systemctl --user stop apollo.service
+systemctl --user stop netstickd.service
 
 # The 'wait' above blocks until gamescope-session.target stops
 # We want to wait until *everything* has finished. We know systemd will have
