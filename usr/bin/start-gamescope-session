@@ -6,6 +6,10 @@ systemctl --user stop gamescope-session.target
 systemctl --user stop graphical-session-pre.target
 systemctl --user reset-failed
 
+# Start Apollo and netstickd services for network streaming and 3DS compatibility.
+systemctl --user start apollo.service
+systemctl --user start netstickd.service
+
 # Update the enviroment with DESKTOP_SESSION and all XDG variables
 dbus-update-activation-environment --systemd DESKTOP_SESSION `env | grep ^XDG_ | cut -d = -f 1`
 

@@ -242,10 +242,6 @@ read_gamescope_env() {
 # Spawned in parallel to read values from gamescope
 (read_gamescope_env &)
 
-# Start Apollo and netstickd services for network streaming and 3DS compatibility.
-systemctl --user start apollo.service
-systemctl --user start netstickd.service
-
 exec gamescope \
 	--generate-drm-mode fixed \
 	--xwayland-count 2 \
