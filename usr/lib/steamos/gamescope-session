@@ -253,5 +253,5 @@ exec gamescope \
 	--fade-out-duration 200 \
 	--cursor-scale-height 720 \
 	-e -R "$socket" -T "$stats" \
-	-O "$output_connector" \
+	-O "${OUTPUT_CONNECTOR:-*,eDP-1}" \
 
