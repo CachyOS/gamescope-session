@@ -242,8 +242,6 @@ read_gamescope_env() {
 # Spawned in parallel to read values from gamescope
 (read_gamescope_env &)
 
-output_connector="${OUTPUT_CONNECTOR:-*,eDP-1}"
-
 exec gamescope \
 	--generate-drm-mode fixed \
 	--xwayland-count 2 \
