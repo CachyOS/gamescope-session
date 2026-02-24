@@ -1,24 +1,8 @@
 #!/bin/bash
 set -e
 
-
-case "$1" in
-    'persistent')
-        systemctl --user mask cachyos-gamescope-autologin.service
-        pkexec /usr/lib/steamos/steam-set-session plasma.desktop;;
-    'oneshot')
-        systemctl --user unmask cachyos-gamescope-autologin.service
-        pkexec /usr/lib/steamos/steam-set-session gamescope-session.desktop;;
-    'gamescope')
-        pkexec /usr/lib/steamos/steam-set-session gamescope-session.desktop
-        qdbus6 org.kde.Shutdown /Shutdown org.kde.Shutdown.logout;;
-    'plasma')
-        pkexec /usr/lib/steamos/steam-set-session plasma.desktop
-        steam -shutdown
-        systemctl --user stop gamescope-session.target;;
-    *)
-        [[ -n "$1" ]] && echo -e "Unknown session '$1'\n"
-        cat <<EOF
+usage() {
+    cat <<EOF
 Usage: $(basename "$0") <mode>
 
 Modes:
@@ -43,12 +27,53 @@ Modes:
 Example:
     $(basename "$0") persistent
 EOF
+}
 
+
+set_session() {
+    local session="$1"
+
+    local display_manager="$(systemctl show -p Id --value display-manager)"
+    case "${display_manager%.service}" in
+        plasmalogin) CONF_FILE="/etc/plasmalogin.conf.d/zz-steamos-autologin.conf";;
+        sddm) CONF_FILE="/etc/sddm.conf.d/zz-steamos-autologin.conf";;
+    esac
+
+    # Don't do anything if system is using unsupported display manager
+    [[ -z "$CONF_FILE" ]] && return 0
+
+    cat <<EOF > "$CONF_FILE"
+[Autologin]
+Session=$session
+EOF
+}
+
+# Become root
+if [[ $EUID != 0 ]]; then
+    exec pkexec --disable-internal-agent "$(realpath $0)" "$@"
+fi
+
+MODE="$1"
+LOGOUT="$2"
+
+case "$MODE" in
+    'persistent')
+        systemctl --global mask cachyos-gamescope-autologin.service
+        set_session plasma.desktop
+        LOGOUT="--no-logout";;
+    'oneshot')
+        systemctl --global unmask cachyos-gamescope-autologin.service
+        set_session gamescope-session.desktop
+        LOGOUT="--no-logout";;
+    'gamescope')
+        set_session gamescope-session.desktop;;
+    'plasma')
+        set_session plasma.desktop;;
+    *)
+        [[ -n "$1" ]] && echo -e "Unknown session '$1'\n"
+        usage
         exit 1;;
 esac
 
-if [[ -e /dev/input/.hidden ]]; then
-    echo "Unhide hidden controller devices as needed"
-    pkexec mv /dev/input/.hidden/* /dev/input
-    pkexec rm -r /dev/input/.hidden
-fi
+[[ "$LOGOUT" != "--no-logout" ]] && loginctl terminate-user 1000
+exit 0
