@@ -240,13 +240,11 @@ read_gamescope_env() {
 (read_gamescope_env &)
 
 exec gamescope \
-	--generate-drm-mode fixed \
-	--xwayland-count 2 \
-	--default-touch-mode 4 \
-	--hide-cursor-delay 3000 \
-	--max-scale 2 \
-	--fade-out-duration 200 \
-	--cursor-scale-height 720 \
+	--generate-drm-mode "${DRM_MODE:-fixed}" \
+	--xwayland-count "${XWAYLAND_COUNT:-2}" \
+	--default-touch-mode "${TOUCH_MODE:-4}" \
+	--hide-cursor-delay "${HIDE_CURSOR_DELAY_MS:-3000}" \
+	--max-scale "${MAX_SCALE:-2}" \
+	--fade-out-duration "${FADE_OUT_DURATION_MS:-200}" \
 	-e -R "$socket" -T "$stats" \
 	-O "${OUTPUT_CONNECTOR:-*,eDP-1}" \
-
