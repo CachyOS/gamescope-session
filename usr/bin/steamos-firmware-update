@@ -25,12 +25,14 @@ GUID_WHITELIST=(81047e95-dc63-cfb7-c974-cf8979a9f065  # Legion Go BIOS - 8APU1
                 9f1be69b-bdad-5f49-9fa2-e8dba58d2b3f  # Legion Go 2 HID - Right Dinput mode - HIDRAW\VEN_17EF&DEV_61EC&CHILD_RIGHT
                 8500cb7d-2abb-5010-8273-e77d3ab00fe6  # Legion Go 2 HID - Right Dual Dinput mode - HIDRAW\VEN_17EF&DEV_61ED&CHILD_RIGHT
                 06f9fc5a-af1c-5f85-9dcf-ac8b518ceac9  # Legion Go 2 HID - Right FPS mode - HIDRAW\VEN_17EF&DEV_61EE&CHILD_RIGHT
-                b585990a-003e-5270-89d5-3705a17f9a43) # fwupd Test device, via `fwupdtool enable-test-devices`
+                b585990a-003e-5270-89d5-3705a17f9a43 # fwupd Test device, via `fwupdtool enable-test-devices`
+                47b13de8-b6ee-4a22-bcd3-7fe5e1a660de) # Fremont System Firmware
 
 
 # For galileo/jupiter units, we will chain to `jupiter-biosupdate` which is a superset of our arguments.
 board_name="$(cat /sys/class/dmi/id/board_name || true)"
 board_vendor="$(cat /sys/class/dmi/id/board_vendor || true)"
+sys_vendor="$(cat /sys/class/dmi/id/sys_vendor || true)"
 if [[ $board_vendor = "Valve" && ( $board_name = "Jupiter" || $board_name = "Galileo" ) ]]; then
    estat "$board_vendor $board_name unit, using jupiter-biosupdate backend"
    exec jupiter-biosupdate "$@" || die "Failed to find jupiter-biosupdate"
@@ -39,8 +41,14 @@ fi
 # Our whitelist is only Lenovo devices presently
 # TODO: implement a smarter/more-comprehensive filter
 # mechanism for known-good firmware updates.
-sys_vendor="$(cat /sys/class/dmi/id/sys_vendor || true)"
-if [[ $sys_vendor != "LENOVO" ]]; then
+supported_system() {
+  [[ $sys_vendor = "LENOVO" ]] && return 0
+  [[ $sys_vendor = "Valve" && $board_name = "Fremont" ]] && return 0
+  # Development name for fremont
+  [[ $sys_vendor = "OEM" && $board_name = "F7F" ]] && return 0
+}
+
+if ! supported_system; then
   estat "No updates configured for this vendor"
   exit 0
 fi
