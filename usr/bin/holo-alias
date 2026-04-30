@@ -1,0 +1,60 @@
+#!/bin/bash
+#shellcheck disable=SC2155
+
+set -euo pipefail
+shopt -s extglob
+
+declare -r called_path=$(realpath -s "$0")
+declare _caller=-unknown-
+
+error () { rc="$1"; shift; logger --id=$$ -s -- "$*"; exit "$rc"; }
+
+set_caller ()
+{
+    local -i pid="$1"
+    local -a cmd=()
+    mapfile -d "" cmd < /proc/$pid/cmdline
+
+    case ${cmd[0]:-} in
+        (?(/usr)/bin/@(bash|ash|sh|perl|python))
+            if [ -n "${cmd[1]:-}" ] && [ -x "${cmd[1]:-}" ]
+            then
+                _caller="${cmd[1]}"
+            else
+                _caller="${cmd[0]:-}"
+            fi
+            ;;
+        (*)
+            _caller="${cmd[0]:-}"
+            ;;
+    esac
+}
+
+############################################################################
+# look for the new executable with 'steamos' replaced by 'holo' throughout.
+# If not, see if it's anywhere else in the path with just the new filename:
+
+declare    new_path=${called_path//steamos/holo}
+declare -r new_name=$(basename "$new_path")
+declare    new_cmd=
+
+set_caller $PPID
+
+if [ ! -x "$new_path" ]
+then
+    prefix="'$called_path' called by '$_caller'"
+    if type -t "$new_name" > /dev/null
+    then
+        # Not where we expect it. Not calling to prevent accidental privilege elevation:
+        error 2 "$prefix: '$new_name' found at unexpected location (not '$new_path')"
+    else
+        # Out of options. Where's the new thing?
+        error 2 "$prefix: not at '$new_path' and not in $PATH"
+    fi
+else
+    new_cmd="$new_path"
+fi
+############################################################################
+
+logger --id=$$ -s "Diverting '$called_path' by '$_caller' to '$new_cmd'"
+exec "$new_cmd" "$@"
