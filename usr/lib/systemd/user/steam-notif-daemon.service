@@ -2,6 +2,7 @@
 Description=Steam Notification Daemon
 After=graphical-session.target
 PartOf=graphical-session.target
+ConditionPathExists=/usr/bin/steam_notif_daemon
 
 [Service]
 ExecStart=/usr/bin/steam_notif_daemon
