@@ -13,8 +13,14 @@ Before=xdg-desktop-portal.service
 [Service]
 TimeoutStartSec=5
 TimeoutStopSec=10
+# This makes it so that xdg-desktop-portal only looks for holo- and
+# gamescope-specific portal implementations and doesn't try to start other
+# irrelevant portal implementations (gtk, kde, …).
+# Plasma resets this variable when it starts, but GNOME doesn't.
+ExecStartPre=/usr/bin/systemctl --user set-environment XDG_DESKTOP_PORTAL_DIR=/usr/share/xdg-desktop-portal/gamescope-portals
 ExecStart=/usr/lib/steamos/gamescope-session
 ExecStopPost=/usr/bin/bash -c '/usr/bin/rm -rf "$XDG_RUNTIME_DIR"/gamescope{.,-}* /tmp/gamescope-limiter*'
+ExecStopPost=/usr/bin/systemctl --user unset-environment XDG_DESKTOP_PORTAL_DIR
 Type=notify
 NotifyAccess=all
 # Make Steam's srt-logger write to the journal with it's own prefixes

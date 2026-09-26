@@ -1,6 +1,5 @@
 [Unit]
 Description=Gamescope Session
-Requires=graphical-session.target
 BindsTo=graphical-session.target
 After=graphical-session.target
 PropagatesStopTo=graphical-session.target
