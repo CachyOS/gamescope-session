@@ -1,4 +1,5 @@
 [Unit]
+ConditionFileIsExecutable=/usr/bin/steam_notif_daemon
 Description=Steam Notification Daemon
 After=graphical-session.target
 PartOf=graphical-session.target
