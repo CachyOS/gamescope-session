@@ -14,7 +14,6 @@ case "$1" in
         qdbus6 org.kde.Shutdown /Shutdown org.kde.Shutdown.logout;;
     'plasma')
         pkexec /usr/lib/steamos/steam-set-session plasma.desktop
-        steam -shutdown
         systemctl --user stop gamescope-session.target;;
     *)
         [[ -n "$1" ]] && echo -e "Unknown session '$1'\n"
