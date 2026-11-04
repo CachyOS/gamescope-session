@@ -1,5 +1,4 @@
 [Unit]
-ConditionFileIsExecutable=/usr/bin/ibus-daemon
 Description=Wrapper for Ibus
 PartOf=graphical-session.target
 After=graphical-session.target

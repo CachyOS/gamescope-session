@@ -1,5 +1,4 @@
 [Unit]
-ConditionFileIsExecutable=/usr/bin/xbindkeys
 Description=Xbindkeys for Gamescope session
 PartOf=graphical-session.target
 After=graphical-session.target
