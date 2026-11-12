@@ -2,6 +2,7 @@
 Description=Wrapper for Ibus
 PartOf=graphical-session.target
 After=graphical-session.target
+ConditionPathExists=/usr/bin/ibus-daemon
 
 [Service]
 Type=dbus
