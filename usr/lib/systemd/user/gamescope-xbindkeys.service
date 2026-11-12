@@ -2,6 +2,8 @@
 Description=Xbindkeys for Gamescope session
 PartOf=graphical-session.target
 After=graphical-session.target
+ConditionPathExists=/usr/bin/xbindkeys
+ConditionPathExists=/etc/xbindkeysrc
 
 [Service]
 Type=exec
