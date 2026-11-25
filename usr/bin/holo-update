@@ -6,10 +6,212 @@
 # steamos-update check                              -- should check for update
 # steamos-update --enable-duplicate-detection       -- should perform an update
 # steamos-update                                    -- should perform an update
+#
+# Steam runs it as root through /usr/bin/holo-polkit-helpers/holo-update.
+# Exit codes: 0 = update available (check) or installed (update),
+#             7 = nothing to update, anything else = failure.
+# While updating, Steam reads progress from stdout as lines like "42%".
+#
+# The update itself runs in the transient unit holo-system-update.service
+# (see /usr/lib/holo-update/holo-system-update), so closing Steam or this
+# script does not interrupt pacman. Running this script again while that
+# unit is active attaches to it instead of starting a second update.
 
-if [[ -f /etc/handheld-first-boot ]]; then
+set -u
+
+readonly UNIT=holo-system-update.service
+readonly WORKER=/usr/lib/holo-update/holo-system-update
+readonly STATE_DIR=${HOLO_UPDATE_STATE_DIR:-/run/holo-update}
+readonly LOG=${HOLO_UPDATE_LOG:-/var/log/holo-update.log}
+readonly MIN_BATTERY=${HOLO_UPDATE_MIN_BATTERY:-30}
+readonly EXIT_NO_UPDATE=7
+
+log() { logger -t holo-update -- "$*"; echo "holo-update: $*" >&2; }
+
+if (( EUID == 0 )) && [[ -f /etc/handheld-first-boot ]]; then
     rm -f /etc/handheld-first-boot
     systemctl restart graphical.target
+    exit "$EXIT_NO_UPDATE"
 fi
 
-exit 7 # Tells Steam that there is nothing to update
+check=0
+for arg in "$@"; do
+    case "$arg" in
+        --supports-duplicate-detection) exit 0 ;;
+        check) check=1 ;;
+    esac
+done
+
+# ActiveState of the update unit ("inactive" when it does not exist), or
+# empty when systemd could not be asked, e.g. while it re-executes itself
+# during a systemd upgrade.
+unit_state() { systemctl show --property=ActiveState --value "$UNIT" 2>/dev/null; }
+
+update_running() {
+    local state _
+    # Ask again for a few seconds if systemd does not answer, so a running
+    # update is not mistaken for a stopped one.
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+        state=$(unit_state)
+        [[ -n $state ]] && break
+        sleep 1
+    done
+    case $state in
+        active|activating|deactivating|reloading|refreshing) return 0 ;;
+    esac
+    return 1
+}
+
+# True when running from the system battery with less than $1 percent left.
+# Peripheral batteries (controllers, mice: scope=Device) are ignored. With
+# several system batteries the fullest one counts.
+on_battery_below() {
+    local supply capacity status online=0 best=-1
+    for supply in /sys/class/power_supply/*; do
+        [[ "$(cat "$supply/scope" 2>/dev/null)" == Device ]] && continue
+        case "$(cat "$supply/type" 2>/dev/null)" in
+            Mains|USB*)
+                [[ "$(cat "$supply/online" 2>/dev/null)" == 1 ]] && online=1
+                ;;
+            Battery)
+                status=$(cat "$supply/status" 2>/dev/null)
+                [[ $status == Charging || $status == Full ]] && online=1
+                capacity=$(cat "$supply/capacity" 2>/dev/null)
+                [[ $capacity =~ ^[0-9]+$ ]] && (( capacity > best )) && best=$capacity
+                ;;
+        esac
+    done
+    (( online == 0 && best >= 0 && best < $1 ))
+}
+
+do_check() {
+    if update_running; then
+        exit 0 # let Steam offer the update, applying it attaches to the running one
+    fi
+    if [[ -e $STATE_DIR/reboot-required ]]; then
+        exit "$EXIT_NO_UPDATE" # already installed, waiting for a restart
+    fi
+    local updates rc db=()
+    if (( EUID == 0 )); then
+        mkdir -p "$STATE_DIR"
+        db=(env CHECKUPDATES_DB="$STATE_DIR/checkup-db")
+    fi # otherwise checkupdates uses its per-user default in $TMPDIR
+    # Steam runs this at every start: ~1-5 s online, ~10 s to give up offline.
+    updates=$("${db[@]}" timeout 60 checkupdates 2>/dev/null)
+    rc=$?
+    case $rc in
+        0) log "$(wc -l <<< "$updates") package update(s) available"; exit 0 ;;
+        2) exit "$EXIT_NO_UPDATE" ;;
+        *) log "update check failed (checkupdates exit $rc), reporting no update"; exit "$EXIT_NO_UPDATE" ;;
+    esac
+}
+
+# A pacman database lock that no process holds is left over from a pacman
+# that was killed (power loss, SIGTERM). It survives reboots and would block
+# every update from Steam, so remove it. libalpm keeps the lock file open
+# while it holds the lock.
+clear_stale_db_lock() {
+    local lock
+    lock="$(pacman-conf DBPath 2>/dev/null)"
+    lock="${lock:-/var/lib/pacman/}"
+    lock="${lock%/}/db.lck"
+    [[ -e $lock ]] || return 0
+    if pgrep -x pacman >/dev/null || { command -v fuser >/dev/null && fuser -s "$lock" 2>/dev/null; }; then
+        log "pacman database is locked ($lock), another package operation is running"
+        return 1
+    fi
+    log "removing stale pacman database lock $lock"
+    rm -f "$lock"
+}
+
+start_update() {
+    if on_battery_below "$MIN_BATTERY"; then
+        log "not updating on battery below ${MIN_BATTERY}%, connect the charger"
+        exit 1
+    fi
+    clear_stale_db_lock || exit 1
+    rm -f "$STATE_DIR/progress" "$STATE_DIR/result"
+    # keep the previous log, a failure message may point to it
+    [[ -s $LOG ]] && mv -f "$LOG" "$LOG.old"
+    : > "$LOG"
+
+    for _ in 1 2 3 4 5; do
+        if systemd-run --unit="$UNIT" --description="System update started from Steam" \
+                --service-type=exec --collect --quiet \
+                --setenv=HOLO_UPDATE_STATE_DIR="$STATE_DIR" --setenv=HOLO_UPDATE_LOG="$LOG" \
+                systemd-inhibit --what=shutdown:sleep:idle:handle-power-key --mode=block \
+                    --who="System update" --why="Installing system updates" "$WORKER"; then
+            return 0
+        fi
+        update_running && return 0
+        # a previous run of the unit may still be in the middle of being collected
+        sleep 1
+    done
+    log "could not start $UNIT"
+    exit 1
+}
+
+follow_update() {
+    local pct last=-1 state gone=0
+    while :; do
+        pct=$(cat "$STATE_DIR/progress" 2>/dev/null)
+        if [[ $pct =~ ^[0-9]+$ && $pct != "$last" ]]; then
+            echo "${pct}%"
+            last=$pct
+        fi
+        # The worker writes the result as its very last step, so it is done
+        # even if the unit still waits for leftover processes to stop.
+        [[ -e $STATE_DIR/result ]] && break
+        state=$(unit_state)
+        case $state in
+            inactive|failed)
+                # Give up only after the unit was reported gone several times
+                # in a row without leaving a result.
+                if (( ++gone >= 6 )); then
+                    log "update stopped without a result, see $LOG and journalctl -u $UNIT"
+                    exit 1
+                fi
+                ;;
+            '')
+                : # systemd did not answer (e.g. re-executing), ask again
+                ;;
+            *)
+                gone=0
+                ;;
+        esac
+        sleep 0.5
+    done
+    # The worker may have written its last progress after our last read.
+    pct=$(cat "$STATE_DIR/progress" 2>/dev/null)
+    if [[ $pct =~ ^[0-9]+$ && $pct != "$last" ]]; then
+        echo "${pct}%"
+    fi
+    local rc
+    rc=$(cat "$STATE_DIR/result")
+    if [[ $rc == 0 || $rc == "$EXIT_NO_UPDATE" ]]; then
+        exit "$rc"
+    fi
+    log "update failed (exit $rc), see $LOG"
+    exit 1
+}
+
+if (( EUID != 0 )); then
+    if (( check )); then
+        do_check # checkupdates works without root
+    fi
+    log "must be run as root"
+    exit 1
+fi
+
+if (( check )); then
+    do_check
+fi
+
+# Serialise "is an update running, otherwise reset the state and start one",
+# so two concurrent calls cannot both start or wipe each other's state.
+mkdir -p "$STATE_DIR"
+exec {start_lock}> "$STATE_DIR/start.lock"
+flock "$start_lock"
+update_running || start_update
+exec {start_lock}>&-
+follow_update
