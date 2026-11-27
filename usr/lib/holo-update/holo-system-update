@@ -1,0 +1,176 @@
+#!/bin/bash
+
+# Installs system updates for holo-update. Runs as root inside the transient
+# unit holo-system-update.service, so it keeps going when Steam goes away.
+#
+# Writes:
+#   $HOLO_UPDATE_STATE_DIR/progress         0-100, only ever increases
+#   $HOLO_UPDATE_STATE_DIR/result           exit status, written last (7: nothing to update)
+#   $HOLO_UPDATE_STATE_DIR/reboot-required  after packages were changed
+#   $HOLO_UPDATE_LOG                        pacman output
+#
+# Progress: 0-3 database sync and keyrings, 3-65 download (by bytes),
+# 65-90 installation (by packages), 90-99 post-transaction hooks.
+#
+# `holo-system-update install-progress <pacman.log> <offset> <packages>`
+# prints the installation progress for a pacman log, for testing.
+
+set -u
+
+STATE_DIR=${HOLO_UPDATE_STATE_DIR:-/run/holo-update}
+LOG=${HOLO_UPDATE_LOG:-/var/log/holo-update.log}
+
+# Progress from pacman's own log, starting at byte <offset>, for <packages> targets.
+install_progress() {
+    # Only libalpm's own lines count, not scriptlet output that mentions them.
+    tail -c +"$(( $2 + 1 ))" "$1" 2>/dev/null | awk -v n="$3" '
+        /^\[[^]]+\] \[ALPM\] (upgraded|installed|reinstalled|downgraded|removed) / { pkgs++ }
+        /^\[[^]]+\] \[ALPM\] transaction started$/                                 { started = 1 }
+        /^\[[^]]+\] \[ALPM\] transaction completed$/                               { done = 1 }
+        /^\[[^]]+\] \[ALPM\] running .*\.hook.\.\.\.$/ && done                     { hooks++ }
+        END {
+            if (done)         p = 90 + (hooks > 9 ? 9 : hooks)
+            else if (started) p = 66 + int(24 * (n > 0 && pkgs < n ? pkgs / n : 1))
+            else              p = 65
+            print p
+        }'
+}
+
+# Download progress from the targets list ("<size> <url>" per line) and the
+# package cache <cachedir>. libalpm downloads into a temporary download-*
+# directory, renames <file>.part to <file> there when a file is complete, and
+# moves all files into the cache only when every download has finished.
+# With <marker>, only download directories newer than that file are looked
+# at, so leftovers from earlier runs don't slow this down.
+download_progress() {
+    local total=0 got=0 size url file dir bytes dirs=()
+    if [[ -n ${3:-} ]]; then
+        mapfile -t dirs < <(find "$2" -mindepth 1 -maxdepth 1 -type d -name 'download-*' -newer "$3" 2>/dev/null)
+    else
+        mapfile -t dirs < <(find "$2" -mindepth 1 -maxdepth 1 -type d -name 'download-*' 2>/dev/null)
+    fi
+    while read -r size url; do
+        [[ $size =~ ^[0-9]+$ ]] || continue
+        [[ $url == file://* ]] && continue
+        file=${url##*/}
+        (( total += size ))
+        if [[ -e $2/$file ]]; then
+            (( got += size ))
+            continue
+        fi
+        for dir in "${dirs[@]}"; do
+            if [[ -e $dir/$file ]]; then
+                (( got += size ))
+                break
+            fi
+            # the file can be renamed between the test and stat
+            bytes=$(stat -c %s "$dir/$file.part" 2>/dev/null) && (( got += bytes ))
+        done
+    done < "$1"
+    (( total > 0 )) || { echo 65; return; }
+    (( got > total )) && got=$total
+    echo $(( 3 + 62 * got / total ))
+}
+
+case ${1:-} in
+    install-progress) install_progress "$2" "$3" "$4"; exit 0 ;;
+    download-progress) download_progress "$2" "$3" "${4:-}"; exit 0 ;;
+esac
+
+last=-1
+progress() {
+    (( $1 > last )) || return 0
+    last=$1
+    echo "$1" > "$STATE_DIR/progress.new" && mv -f "$STATE_DIR/progress.new" "$STATE_DIR/progress"
+}
+
+finish() {
+    local rc=$1
+    if (( rc == 0 )); then
+        progress 100
+    fi
+    echo "$rc" > "$STATE_DIR/result"
+    echo "== finished $(date -Is), exit $rc" >> "$LOG"
+    exit "$rc"
+}
+
+run() {
+    echo "== $(date -Is) $*" >> "$LOG"
+    "$@" >> "$LOG" 2>&1
+}
+
+mkdir -p "$STATE_DIR"
+PACMAN_LOG=$(pacman-conf LogFile)
+CACHE_DIR=$(pacman-conf CacheDir | head -n1)
+CACHE_DIR=${CACHE_DIR%/}
+PACMAN=(pacman --noconfirm --noprogressbar --color never)
+
+progress 0
+run "${PACMAN[@]}" -Sy || finish 1
+progress 2
+
+# Refresh keyrings first, so packages signed with new keys verify.
+keyrings=()
+for keyring in archlinux-keyring cachyos-keyring; do
+    pacman -Qu "$keyring" &>/dev/null && keyrings+=("$keyring")
+done
+if (( ${#keyrings[@]} )); then
+    run "${PACMAN[@]}" -S --needed "${keyrings[@]}" || finish 1
+fi
+progress 3
+
+targets=$STATE_DIR/targets
+# "<download size> <url>" per target; already cached packages show up as
+# file:// URLs. pacman also prints prompts and CachyOS update notices to
+# stdout here, so keep only target lines and log the rest.
+if ! "${PACMAN[@]}" -Sup --print-format '%s %l' > "$targets.raw" 2>> "$LOG" < /dev/null; then
+    finish 1
+fi
+# After an interrupted download pacman keeps <file>.part in the cache and %s
+# is only the remaining size; add the part already there, so the total
+# matches the size of the .part file while it grows.
+while read -r size url; do
+    file=${url##*/}
+    if [[ $url != file://* ]] && bytes=$(stat -c %s "$CACHE_DIR/$file.part" 2>/dev/null); then
+        size=$(( size + bytes ))
+    fi
+    echo "$size $url"
+done < <(grep -E '^[0-9]+ [a-z][a-z0-9+.-]*://' "$targets.raw") > "$targets"
+if grep -v -q -E '^[0-9]+ [a-z][a-z0-9+.-]*://' "$targets.raw"; then
+    { echo "== pacman messages while listing targets:"; grep -v -E '^[0-9]+ [a-z][a-z0-9+.-]*://' "$targets.raw"; } >> "$LOG"
+fi
+packages=$(grep -c . "$targets")
+if (( packages == 0 )); then
+    # Also the case when only the keyrings above were updated; those need no restart.
+    echo "== nothing to update" >> "$LOG"
+    finish 7
+fi
+echo "== $packages package(s) to install" >> "$LOG"
+
+echo "== $(date -Is) downloading" >> "$LOG"
+touch "$STATE_DIR/download-start"
+"${PACMAN[@]}" -Suw >> "$LOG" 2>&1 &
+pid=$!
+while kill -0 "$pid" 2>/dev/null; do
+    progress "$(download_progress "$targets" "$CACHE_DIR" "$STATE_DIR/download-start")"
+    sleep 1
+done
+wait "$pid" || finish 1
+progress 65
+
+echo "== $(date -Is) installing" >> "$LOG"
+offset=$(stat -c %s "$PACMAN_LOG" 2>/dev/null || echo 0)
+"${PACMAN[@]}" -Su >> "$LOG" 2>&1 &
+pid=$!
+while kill -0 "$pid" 2>/dev/null; do
+    progress "$(install_progress "$PACMAN_LOG" "$offset" "$packages")"
+    sleep 1
+done
+wait "$pid"
+rc=$?
+# Only a successful update waits for a restart. After a failed one, the
+# check keeps offering the update so it can be retried once the cause is fixed.
+if (( rc == 0 )) && grep -q -E '^\[[^]]+\] \[ALPM\] transaction started$' <(tail -c +"$(( offset + 1 ))" "$PACMAN_LOG"); then
+    touch "$STATE_DIR/reboot-required"
+fi
+finish "$rc"
