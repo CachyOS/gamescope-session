@@ -249,5 +249,5 @@ exec gamescope \
 	--hide-cursor-delay "${HIDE_CURSOR_DELAY_MS:-3000}" \
 	--max-scale "${MAX_SCALE:-2}" \
 	--fade-out-duration "${FADE_OUT_DURATION_MS:-200}" \
-	-e -R "$socket" -T "$stats" \
+	-e --rt -R "$socket" -T "$stats" \
 	-O "${OUTPUT_CONNECTOR:-*,eDP-1}" \
