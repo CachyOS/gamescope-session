@@ -1,6 +1,7 @@
 [Unit]
 Description=Steam Notification Daemon
 After=graphical-session.target
+ConditionPathExists=/usr/bin/steam_notif_daemon
 PartOf=graphical-session.target
 
 [Service]
