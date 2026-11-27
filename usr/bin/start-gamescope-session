@@ -9,12 +9,6 @@ systemctl --user reset-failed
 # Update the enviroment with DESKTOP_SESSION and all XDG variables
 dbus-update-activation-environment --systemd DESKTOP_SESSION `env | grep ^XDG_ | cut -d = -f 1`
 
-# This makes it so that xdg-desktop-portal only looks for holo- and
-# gamescope-specific portal implementations and doesn't try to start other
-# irrelevant portal implementations (gtk, kde, …).
-# Plasma resets this variable when it starts.
-systemctl --user set-environment XDG_DESKTOP_PORTAL_DIR=""
-
 # If this shell script is killed then stop gamescope-session
 trap 'systemctl --user stop gamescope-session.target' HUP INT TERM
 
