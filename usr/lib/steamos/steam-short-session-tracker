@@ -19,18 +19,29 @@ do_repair() {
   steam_config_dir="$HOME/.steam"
   steam_config_backup_dir="$HOME/dot-steam.bak.$(date +%s)"
   registry_vdf="$steam_config_dir/registry.vdf"
-  registry_backup_vdf="$steam_config_backup_dir/.steam/registry.vdf"
+  registry_backup_vdf="$steam_config_backup_dir/registry.vdf"
   mv "$steam_config_dir" "$steam_config_backup_dir"
   mkdir -p "$steam_config_dir"
   cp -f "$registry_backup_vdf" "$registry_vdf" || true
   # restore clean copy of binaries from RO partition
   tar xf /usr/lib/steam/bootstraplinux_ubuntu12_32.tar.xz -C ~/.local/share/Steam
   # rearm
-  rm "$short_session_tracker_file"
+  rm -f "$short_session_tracker_file"
+}
+
+# ExecStopPost= gets how the service ended from systemd. A requested stop
+# (switching to the desktop, logout, shutdown) ends Steam with the SIGTERM
+# from ExecStop=, and `steam -shutdown` exits with 0. Neither means that
+# Steam failed to start, so they must not count towards a repair.
+stopped_cleanly() {
+  case "${EXIT_CODE:-}:${EXIT_STATUS:-}" in
+    exited:0|exited:143|killed:TERM|killed:INT|killed:HUP) return 0 ;;
+  esac
+  return 1
 }
 
 handle_started() {
-  short_session_count=$(< "$short_session_tracker_file" wc -l)
+  short_session_count=$({ wc -l < "$short_session_tracker_file"; } 2>/dev/null || echo 0)
   touch $short_session_start_file
 
   if [[ "$short_session_count" -ge "$short_session_count_before_reset" ]]; then
@@ -46,12 +57,14 @@ handle_started() {
 }
 
 handle_stopped() {
-  seconds_since_started=$(($(date +%s) - $(date +%s -r "$short_session_start_file")))
+  local started
+  started=$(date +%s -r "$short_session_start_file" 2>/dev/null) || return 0
+  seconds_since_started=$(($(date +%s) - started))
 
-  if [[ "seconds_since_started" -lt "$short_session_duration" ]]; then
+  if [[ "$seconds_since_started" -ge "$short_session_duration" ]]; then
+    rm -f "$short_session_tracker_file"
+  elif ! stopped_cleanly; then
     echo "frog" >> "$short_session_tracker_file"
-  else
-    rm "$short_session_tracker_file"
   fi
 }
 
